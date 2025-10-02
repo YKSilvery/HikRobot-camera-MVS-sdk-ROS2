@@ -9,7 +9,7 @@ def generate_launch_description():
     # 声明启动参数
     frame_rate_arg = DeclareLaunchArgument(
         'frame_rate',
-        default_value='1.0',
+        default_value='1000.0',
         description='相机帧率 (fps)'
     )
 
