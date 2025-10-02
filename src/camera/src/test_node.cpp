@@ -95,7 +95,7 @@ public:
       node->image_publisher_->publish(image_msg);
 
       MVCC_FLOATVALUE frame_rate;
-      int result = MV_CC_GetFloatValue(node->handle_, "AcquisitionFrameRate", &frame_rate);
+      int result = MV_CC_GetFloatValue(node->handle_, "ResultingFrameRate", &frame_rate);
       if (result == MV_OK) {
         RCLCPP_INFO(node->get_logger(), "Current frame rate: %.f", frame_rate.fCurValue);
       } else {
@@ -194,7 +194,7 @@ public:
   }
 
 
-  
+
 
   void reconfigureCamera()
   {
