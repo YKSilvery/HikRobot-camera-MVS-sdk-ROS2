@@ -28,11 +28,34 @@ source install/setup.bash
 
 ### 启动相机节点
 
+#### 使用launch文件（推荐）
+
+```bash
+# 使用默认参数启动
+ros2 launch camera camera.launch.py
+
+# 或自定义参数启动
+ros2 launch camera camera.launch.py frame_rate:=30.0 exposure_time:=5000.0 gain:=5.0 pixel_format:=RGB8
+```
+
+#### 直接运行节点
+
 ```bash
 ros2 run camera test_node
 ```
 
-### 动态参数控制
+### 参数配置
+
+#### 启动时参数配置（launch方式）
+
+launch文件支持以下参数：
+
+- `frame_rate`: 相机帧率，默认为1.0 (fps)
+- `exposure_time`: 曝光时间，默认为10000.0 (微秒)
+- `gain`: 增益，默认为0.0 (dB)
+- `pixel_format`: 像素格式，默认为"Mono8"
+
+#### 运行时动态参数控制
 
 支持以下参数的运行时调整：
 

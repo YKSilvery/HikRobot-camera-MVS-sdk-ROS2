@@ -32,6 +32,12 @@ target_compile_features(test_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and
 install(TARGETS test_node
   DESTINATION lib/${PROJECT_NAME})
 
+# Install launch files
+install(DIRECTORY launch/
+  DESTINATION share/${PROJECT_NAME}/launch
+  FILES_MATCHING PATTERN "*.py"
+)
+
 # Install MVS SDK libraries
 install(DIRECTORY ${MVS_LIB_DIR}/
   DESTINATION lib
