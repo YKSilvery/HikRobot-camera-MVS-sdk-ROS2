@@ -112,36 +112,125 @@ public:
 
   void reconnect()
   {
-    // 关闭和销毁当前句柄
-    if (handle_) {
-      MV_CC_CloseDevice(handle_);
-      MV_CC_DestroyHandle(handle_);
-      handle_ = nullptr;
+    // 如果已经在重连中，直接返回
+    if (is_reconnecting_) {
+      return;
     }
+    
+    is_reconnecting_ = true;
+    RCLCPP_WARN(this->get_logger(), "Starting reconnection thread...");
+    
+    // 在后台线程中持续尝试重连
+    std::thread([this]() {
+      while (rclcpp::ok() && is_reconnecting_) {
+        // 关闭和销毁当前句柄
+        if (handle_) {
+          if (is_grabbing_) {
+            MV_CC_StopGrabbing(handle_);
+            is_grabbing_ = false;
+          }
+          MV_CC_RegisterExceptionCallBack(handle_, NULL, this);
+          MV_CC_RegisterImageCallBackEx(handle_, NULL, this);
+          MV_CC_CloseDevice(handle_);
+          MV_CC_DestroyHandle(handle_);
+          handle_ = nullptr;
+        }
 
-    // 重新枚举设备
+        // 重新枚举设备
+        MV_CC_DEVICE_INFO_LIST stDeviceList;
+        memset(&stDeviceList, 0, sizeof(MV_CC_DEVICE_INFO_LIST));
+        int enum_result = MV_CC_EnumDevices(MV_GIGE_DEVICE | MV_USB_DEVICE, &stDeviceList);
+        
+        if (enum_result == MV_OK && stDeviceList.nDeviceNum > 0) {
+          RCLCPP_INFO(this->get_logger(), "Found %d device(s), attempting to connect...", stDeviceList.nDeviceNum);
+          
+          // 创建句柄
+          int create_result = MV_CC_CreateHandle(&handle_, stDeviceList.pDeviceInfo[0]);
+          if (create_result == MV_OK) {
+            // 打开设备
+            int open_result = MV_CC_OpenDevice(handle_);
+            if (open_result == MV_OK) {
+              RCLCPP_INFO(this->get_logger(), "Device reconnected successfully!");
+              
+              // 重新配置相机参数
+              reconfigureCamera();
+              
+              // 注册回调
+              MV_CC_RegisterExceptionCallBack(handle_, ExceptionCallBack, this);
+              int callback_result = MV_CC_RegisterImageCallBackEx(handle_, ImageCallback, this);
+              if (callback_result == MV_OK) {
+                // 开始取流
+                int start_result = MV_CC_StartGrabbing(handle_);
+                if (start_result == MV_OK) {
+                  is_grabbing_ = true;
+                  is_reconnecting_ = false;  // 重连成功，停止重连线程
+                  RCLCPP_INFO(this->get_logger(), "Reconnection completed successfully!");
+                  return;
+                } else {
+                  RCLCPP_ERROR(this->get_logger(), "Failed to restart grabbing: %d", start_result);
+                }
+              } else {
+                RCLCPP_ERROR(this->get_logger(), "Failed to register image callback: %d", callback_result);
+              }
+              
+              // 如果配置或启动失败，关闭设备并继续重试
+              MV_CC_CloseDevice(handle_);
+              MV_CC_DestroyHandle(handle_);
+              handle_ = nullptr;
+            } else {
+              RCLCPP_WARN(this->get_logger(), "Failed to reopen device: %d", open_result);
+            }
+          } else {
+            RCLCPP_WARN(this->get_logger(), "Failed to recreate handle: %d", create_result);
+          }
+        } else {
+          RCLCPP_WARN(this->get_logger(), "No devices found, will retry...");
+        }
+        
+        // 等待2秒后重试
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+      }
+    }).detach();  // 分离线程，让它在后台运行
+  }
+
+
+  
+
+  void reconfigureCamera()
+  {
+    if (!handle_) return;
+    
+    // 检查设备类型，设置包大小（GigE）
     MV_CC_DEVICE_INFO_LIST stDeviceList;
     memset(&stDeviceList, 0, sizeof(MV_CC_DEVICE_INFO_LIST));
-    int enum_result = MV_CC_EnumDevices(MV_GIGE_DEVICE | MV_USB_DEVICE, &stDeviceList);
-    if (enum_result == MV_OK && stDeviceList.nDeviceNum > 0) {
-      // 创建句柄
-      int create_result = MV_CC_CreateHandle(&handle_, stDeviceList.pDeviceInfo[0]);
-      if (create_result == MV_OK) {
-        // 打开设备
-        int open_result = MV_CC_OpenDevice(handle_);
-        if (open_result == MV_OK) {
-          // 重新注册回调
-          MV_CC_RegisterExceptionCallBack(handle_, ExceptionCallBack, this);
-          RCLCPP_INFO(this->get_logger(), "Reconnected successfully!");
-        } else {
-          RCLCPP_ERROR(this->get_logger(), "Failed to reopen device: %d", open_result);
-        }
-      } else {
-        RCLCPP_ERROR(this->get_logger(), "Failed to recreate handle: %d", create_result);
+    MV_CC_EnumDevices(MV_GIGE_DEVICE | MV_USB_DEVICE, &stDeviceList);
+    
+    if (stDeviceList.nDeviceNum > 0 && stDeviceList.pDeviceInfo[0]->nTLayerType == MV_GIGE_DEVICE) {
+      int nPacketSize = MV_CC_GetOptimalPacketSize(handle_);
+      if (nPacketSize > 0) {
+        MV_CC_SetIntValueEx(handle_, "GevSCPSPacketSize", nPacketSize);
       }
-    } else {
-      RCLCPP_ERROR(this->get_logger(), "No devices found after disconnect");
     }
+
+    // 设置触发模式为off
+    MV_CC_SetEnumValue(handle_, "TriggerMode", 0);
+
+    // 重新应用当前参数
+    double frame_rate = this->get_parameter("frame_rate").as_double();
+    MV_CC_SetBoolValue(handle_, "AcquisitionFrameRateEnable", true);
+    MV_CC_SetFloatValue(handle_, "AcquisitionFrameRate", frame_rate);
+
+    double exposure_time = this->get_parameter("exposure_time").as_double();
+    MV_CC_SetFloatValue(handle_, "ExposureTime", exposure_time);
+
+    double gain = this->get_parameter("gain").as_double();
+    MV_CC_SetFloatValue(handle_, "Gain", gain);
+
+    std::string pixel_format = this->get_parameter("pixel_format").as_string();
+    MV_CC_SetEnumValueByString(handle_, "PixelFormat", pixel_format.c_str());
+
+    // 设置缓存节点个数
+    MV_CC_SetImageNodeNum(handle_, 1);
   }
 
 
@@ -161,7 +250,7 @@ public:
 
 
 
-  MyNode() : Node("my_node"), handle_(nullptr), is_grabbing_(false), payload_size_(0)
+  MyNode() : Node("my_node"), handle_(nullptr), is_grabbing_(false), is_reconnecting_(false), payload_size_(0)
   {
     // 创建图像发布者
     image_publisher_ = this->create_publisher<sensor_msgs::msg::Image>("image_raw", 10);
@@ -399,6 +488,8 @@ public:
 
   ~MyNode()  // 析构函数,释放资源
   {
+    is_reconnecting_ = false;  // 停止重连线程
+    
     if (is_grabbing_) {
       is_grabbing_ = false;
       MV_CC_StopGrabbing(handle_);
@@ -417,6 +508,7 @@ public:
 private:
   void* handle_;
   bool is_grabbing_;
+  bool is_reconnecting_;
   unsigned int payload_size_;
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
