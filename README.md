@@ -50,7 +50,7 @@ ros2 run camera test_node
 
 launch文件支持以下参数：
 
-- `frame_rate`: 相机帧率，默认为1.0 (fps)
+- `frame_rate`: 相机帧率，默认为1000.0 (fps)
 - `exposure_time`: 曝光时间，默认为10000.0 (微秒)
 - `gain`: 增益，默认为0.0 (dB)
 - `pixel_format`: 像素格式，默认为"Mono8"
