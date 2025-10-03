@@ -35,7 +35,7 @@ source install/setup.bash
 ros2 launch camera camera.launch.py
 
 # 或自定义参数启动
-ros2 launch camera camera.launch.py frame_rate:=30.0 exposure_time:=5000.0 gain:=5.0 pixel_format:=RGB8
+ros2 launch camera camera.launch.py frame_rate:=30.0 exposure_time:=5000.0 gain:=5.0 pixel_format:=RGB8Packed
 ```
 
 #### 直接运行节点
@@ -62,7 +62,7 @@ launch文件支持以下参数：
 - `frame_rate`: 帧率 (fps)
 - `exposure_time`: 曝光时间 (微秒)
 - `gain`: 增益 (dB)
-- `pixel_format`: 像素格式 (Mono8, RGB8, etc.)
+- `pixel_format`: 像素格式 (支持的格式见下表)
 
 #### 设置参数示例
 
@@ -77,7 +77,7 @@ ros2 param set /my_node exposure_time 5000.0
 ros2 param set /my_node gain 5.0
 
 # 设置像素格式
-ros2 param set /my_node pixel_format "RGB8"
+ros2 param set /my_node pixel_format "RGB8Packed"
 ```
 
 ### 图像话题
@@ -97,10 +97,38 @@ ros2 run rviz2 rviz2
 
 ## 支持的像素格式
 
-- Mono8, Mono10, Mono12
-- RGB8, BGR8, RGBA8, BGRA8
-- Bayer格式 (RGGB, GRBG, GBRG, BGGR)
-- RGB10, RGB12
+根据MVS SDK文档，支持以下像素格式（参数名）：
+
+### 单通道格式
+- `Mono8`: 8位单通道
+- `Mono10`: 10位单通道
+- `Mono10Packed`: 10位单通道（打包格式）
+- `Mono12`: 12位单通道
+- `Mono12Packed`: 12位单通道（打包格式）
+- `Mono16`: 16位单通道
+
+### 彩色格式
+- `RGB8Packed`: 24位RGB彩色
+- `BGR8Packed`: 24位BGR彩色
+- `RGBA8Packed`: 32位RGBA彩色
+- `BGRA8Packed`: 32位BGRA彩色
+- `RGB10Packed`: 30位RGB彩色（打包）
+- `RGB12Packed`: 36位RGB彩色（打包）
+
+### Bayer格式
+- `BayerRG8`: RG Bayer 8位
+- `BayerGB8`: GB Bayer 8位
+- `BayerGR8`: GR Bayer 8位
+- `BayerBG8`: BG Bayer 8位
+- `BayerGB10`: GB Bayer 10位
+- `BayerGB12`: GB Bayer 12位
+- `BayerGB12Packed`: GB Bayer 12位（打包）
+
+### YUV格式
+- `YUV422_8`: YUV422 8位
+- `YUV422_8_UYVY`: YUV422 UYVY格式
+
+**注意**: 不同相机型号支持的像素格式可能有差异，请以实际相机为准。
 
 ## 注意事项
 

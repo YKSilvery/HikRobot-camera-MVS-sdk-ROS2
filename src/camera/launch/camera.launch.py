@@ -28,7 +28,7 @@ def generate_launch_description():
     pixel_format_arg = DeclareLaunchArgument(
         'pixel_format',
         default_value='Mono8',
-        description='像素格式 (Mono8, RGB8, etc.)'
+        description='像素格式 (Mono8, RGB8Packed, BayerRG8, etc.)'
     )
 
     # 创建相机节点

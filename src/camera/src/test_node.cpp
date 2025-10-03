@@ -14,6 +14,16 @@ public:
     switch (pixelType) {
       case PixelType_Gvsp_Mono8:
         return "mono8";
+      case PixelType_Gvsp_Mono10:
+        return "mono10";
+      case PixelType_Gvsp_Mono10_Packed:
+        return "mono10";
+      case PixelType_Gvsp_Mono12:
+        return "mono12";
+      case PixelType_Gvsp_Mono12_Packed:
+        return "mono12";
+      case PixelType_Gvsp_Mono16:
+        return "mono16";
       case PixelType_Gvsp_RGB8_Packed:
         return "rgb8";
       case PixelType_Gvsp_BGR8_Packed:
@@ -22,6 +32,10 @@ public:
         return "rgba8";
       case PixelType_Gvsp_BGRA8_Packed:
         return "bgra8";
+      case PixelType_Gvsp_YCBCR422_8:
+        return "yuv422";
+      case PixelType_Gvsp_YUV422_Packed:
+        return "yuv422_yuy2";
       case PixelType_Gvsp_BayerRG8:
         return "bayer_rggb8";
       case PixelType_Gvsp_BayerGB8:
@@ -30,10 +44,12 @@ public:
         return "bayer_gbrg8";
       case PixelType_Gvsp_BayerBG8:
         return "bayer_bggr8";
-      case PixelType_Gvsp_Mono10:
-        return "mono10";
-      case PixelType_Gvsp_Mono12:
-        return "mono12";
+      case PixelType_Gvsp_BayerGB10:
+        return "bayer_grbg10";
+      case PixelType_Gvsp_BayerGB12:
+        return "bayer_grbg12";
+      case PixelType_Gvsp_BayerGB12_Packed:
+        return "bayer_grbg12";
       case PixelType_Gvsp_RGB10_Packed:
         return "rgb10";
       case PixelType_Gvsp_RGB12_Packed:
@@ -53,15 +69,28 @@ public:
       case PixelType_Gvsp_BayerGR8:
       case PixelType_Gvsp_BayerBG8:
         return width;
+      case PixelType_Gvsp_Mono10:
+      case PixelType_Gvsp_Mono12:
+      case PixelType_Gvsp_Mono16:
+        return width * 2;
+      case PixelType_Gvsp_Mono10_Packed:
+      case PixelType_Gvsp_Mono12_Packed:
+        return (width * 10 + 7) / 8 * 2;  // 10位或12位打包格式
       case PixelType_Gvsp_RGB8_Packed:
       case PixelType_Gvsp_BGR8_Packed:
         return width * 3;
       case PixelType_Gvsp_RGBA8_Packed:
       case PixelType_Gvsp_BGRA8_Packed:
         return width * 4;
-      case PixelType_Gvsp_Mono10:
-      case PixelType_Gvsp_Mono12:
-        return width * 2;  // 10/12位通常是16位存储
+      case PixelType_Gvsp_YCBCR422_8:
+      case PixelType_Gvsp_YUV422_Packed:
+        return width * 2;
+      case PixelType_Gvsp_BayerGB10:
+        return width * 2;
+      case PixelType_Gvsp_BayerGB12:
+        return width * 2;
+      case PixelType_Gvsp_BayerGB12_Packed:
+        return (width * 12 + 7) / 8 * 2;  // 12位Bayer打包格式
       case PixelType_Gvsp_RGB10_Packed:
         return width * 4;  // RGB10通常是32位
       case PixelType_Gvsp_RGB12_Packed:
@@ -226,6 +255,7 @@ public:
     double gain = this->get_parameter("gain").as_double();
     MV_CC_SetFloatValue(handle_, "Gain", gain);
 
+    // 像素格式设置（重连时不需要停止采集，因为此时还没有开始采集）
     std::string pixel_format = this->get_parameter("pixel_format").as_string();
     MV_CC_SetEnumValueByString(handle_, "PixelFormat", pixel_format.c_str());
 
@@ -259,8 +289,8 @@ public:
 
 
     // 声明参数
-    this->declare_parameter("frame_rate", 1.0);  // 默认1fps
-    this->declare_parameter("exposure_time", 10000.0);  // 默认10ms
+    this->declare_parameter("frame_rate", 1000.0);  // 默认1000fps
+    this->declare_parameter("exposure_time", 10000.0);  // 默认10000us
     this->declare_parameter("gain", 0.0);  // 默认0dB
     this->declare_parameter("pixel_format", std::string("Mono8"));  // 默认Mono8
 
@@ -324,11 +354,41 @@ public:
           std::string pixel_format = param.as_string();
           RCLCPP_INFO(this->get_logger(), "New pixel format: %s", pixel_format.c_str());
           if (handle_) {
+            // 像素格式需要停止采集后才能设置
+            bool was_grabbing = is_grabbing_;
+            if (was_grabbing) {
+              MV_CC_StopGrabbing(handle_);
+              is_grabbing_ = false;
+              RCLCPP_INFO(this->get_logger(), "Stopped grabbing to change pixel format");
+            }
+
             int result = MV_CC_SetEnumValueByString(handle_, "PixelFormat", pixel_format.c_str());
             if (result == MV_OK) {
               RCLCPP_INFO(this->get_logger(), "Pixel format updated to: %s", pixel_format.c_str());
+              
+              // 如果之前在采集，需要重新开始
+              if (was_grabbing) {
+                int start_result = MV_CC_StartGrabbing(handle_);
+                if (start_result == MV_OK) {
+                  is_grabbing_ = true;
+                  RCLCPP_INFO(this->get_logger(), "Restarted grabbing with new pixel format");
+                } else {
+                  RCLCPP_ERROR(this->get_logger(), "Failed to restart grabbing after pixel format change: %d", start_result);
+                }
+              }
             } else {
               RCLCPP_ERROR(this->get_logger(), "Failed to set pixel format: %d", result);
+              
+              // 如果设置失败，尝试恢复之前的采集状态
+              if (was_grabbing) {
+                int start_result = MV_CC_StartGrabbing(handle_);
+                if (start_result == MV_OK) {
+                  is_grabbing_ = true;
+                  RCLCPP_INFO(this->get_logger(), "Restored grabbing after pixel format change failed");
+                } else {
+                  RCLCPP_ERROR(this->get_logger(), "Failed to restore grabbing: %d", start_result);
+                }
+              }
             }
           } else {
             RCLCPP_WARN(this->get_logger(), "Camera handle not available");
