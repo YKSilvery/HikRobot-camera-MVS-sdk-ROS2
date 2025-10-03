@@ -3,6 +3,8 @@
 这是一个基于海康威视MVS SDK v4.6.0的ROS2工业相机驱动包。该包是自包含的，不需要系统级别的SDK安装。
 所以你直接build就完事啦，没装MVS都行
 
+我😭最近有事不在学校所以借不到相机😭所以使用的是虚拟相机调的，不知道strkey能不能正确应用到真相机上，不过参数肯定是写了的
+
 ## 功能特性
 
 - 支持GigE和USB工业相机
@@ -50,7 +52,7 @@ ros2 run camera test_node
 
 launch文件支持以下参数：
 
-- `frame_rate`: 相机帧率，默认为1.0 (fps)
+- `frame_rate`: 相机帧率，默认为1000.0 (fps)
 - `exposure_time`: 曝光时间，默认为10000.0 (微秒)
 - `gain`: 增益，默认为0.0 (dB)
 - `pixel_format`: 像素格式，默认为"Mono8"
