@@ -197,28 +197,6 @@ ros2 run rviz2 rviz2 -d install/camera/share/camera/rviz/camera.rviz
 2. 参数设置会自动应用到真实设备
 3. 重连机制在真实环境中同样有效
 
-## 🛠️ 故障排除
-
-### 常见问题
-
-**Q: RViz2显示空白**
-A: 检查Fixed Frame设置，确保为"camera"或"map"
-
-**Q: 参数修改无效**
-A: 确认参数路径正确，虚拟相机可能不支持某些参数
-
-**Q: 连接失败**
-A: 检查相机连接，确认设备未被其他软件占用
-
-**Q: 帧率不稳定**
-A: 调整曝光时间，检查相机性能限制
-
-### 日志分析
-
-```bash
-# 查看详细日志
-ros2 launch camera camera.launch.py --ros-args --log-level debug
-```
 
 ## 📄 API参考
 
@@ -234,18 +212,3 @@ ros2 launch camera camera.launch.py --ros-args --log-level debug
 
 详见"参数配置"章节
 
-## 🤝 贡献
-
-欢迎提交Issue和Pull Request！
-
-## 📜 许可证
-
-请查看package.xml中的许可证声明
-
-## ⚠️ 注意事项
-
-- 增益控制在虚拟相机上可能不可用
-- 确保相机连接并正确配置
-- 不同相机型号支持的像素格式可能有差异
-- 包大小设置会自动优化（GigE相机）
-- **断线重连机制**: 设备断开时会每2秒自动尝试重连，直到连接成功为止
