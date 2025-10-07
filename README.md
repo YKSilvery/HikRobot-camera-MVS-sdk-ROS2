@@ -46,24 +46,11 @@ ros2 launch camera camera.launch.py
 - 显示实时FPS统计
 - 启动RViz2显示图像
 
-### 自定义参数启动
-
-```bash
-# 高帧率模式
-ros2 launch camera camera.launch.py frame_rate:=500.0
-
-# 高质量模式
-ros2 launch camera camera.launch.py exposure_time:=20000.0 gain:=5.0
-
-# 彩色模式
-ros2 launch camera camera.launch.py pixel_format:=RGB8Packed
-```
-
 ## 🔧 参数配置
 
-### 启动时参数
+### 默认参数
 
-launch文件支持以下参数配置：
+系统启动时的默认参数配置：
 
 | 参数 | 默认值 | 单位 | 描述 |
 |------|--------|------|------|
@@ -74,20 +61,36 @@ launch文件支持以下参数配置：
 
 ### 运行时动态调整
 
+**注意：launch文件不支持参数设置，只能通过ROS2参数命令动态修改**
+
 支持运行时参数修改，无需重启节点：
 
 ```bash
 # 调整帧率
-ros2 param set /camera_container/my_node frame_rate 500.0
+ros2 param set /my_node frame_rate 500.0
 
-# 调整曝光
-ros2 param set /camera_container/my_node exposure_time 15000.0
+# 调整曝光时间
+ros2 param set /my_node exposure_time 15000.0
 
 # 调整增益
-ros2 param set /camera_container/my_node gain 3.0
+ros2 param set /my_node gain 3.0
 
 # 切换像素格式
-ros2 param set /camera_container/my_node pixel_format "RGB8Packed"
+ros2 param set /my_node pixel_format "RGB8Packed"
+```
+
+### 参数修改示例
+
+```bash
+# 高帧率模式设置
+ros2 param set /my_node frame_rate 500.0
+
+# 高质量模式设置
+ros2 param set /my_node exposure_time 20000.0
+ros2 param set /my_node gain 5.0
+
+# 彩色模式设置
+ros2 param set /my_node pixel_format "RGB8Packed"
 ```
 
 ## 📊 实时监控
@@ -139,22 +142,6 @@ Camera Container
     ├── FPS实时统计
     └── 图像信息显示
 ```
-Camera Container
-├── MyNode (相机驱动)
-│   ├── 设备连接管理
-│   ├── 参数动态配置
-│   ├── 图像采集回调
-│   └── 自动重连机制
-└── ImageViewerNode (监控节点)
-    ├── FPS实时统计
-    └── 图像信息显示
-```
-
-### 通信机制
-
-- **进程内通信**: 零拷贝，最高效
-- **话题**: `/image_raw` (sensor_msgs/Image)
-- **坐标系**: `camera` frame
 
 ### 通信机制
 
@@ -234,6 +221,14 @@ A: 调整曝光时间，检查相机性能限制
 ```bash
 # 查看详细日志
 ros2 launch camera camera.launch.py --ros-args --log-level debug
+
+```bash
+# 查看当前参数值
+ros2 param list /my_node
+
+# 获取特定参数值
+ros2 param get /my_node frame_rate
+```
 ```
 
 ## 📄 API参考
@@ -249,4 +244,3 @@ ros2 launch camera camera.launch.py --ros-args --log-level debug
 ### 参数
 
 详见"参数配置"章节
-
