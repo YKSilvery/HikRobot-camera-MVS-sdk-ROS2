@@ -43,7 +43,7 @@ private:
     
     if (duration_sec > 0.0) {
       double fps = static_cast<double>(frame_count_) / duration_sec;
-      RCLCPP_INFO(this->get_logger(), "=== ACTUAL FPS: %.2f === (frames: %d in %.2f seconds)", 
+      RCLCPP_INFO(this->get_logger(), "=== VIEWER RECEIVED FPS: %.2f === (frames: %d in %.2f seconds)", 
                   fps, frame_count_, duration_sec);
     }
     
