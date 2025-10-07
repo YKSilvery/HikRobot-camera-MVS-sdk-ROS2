@@ -139,6 +139,22 @@ Camera Container
     ├── FPS实时统计
     └── 图像信息显示
 ```
+Camera Container
+├── MyNode (相机驱动)
+│   ├── 设备连接管理
+│   ├── 参数动态配置
+│   ├── 图像采集回调
+│   └── 自动重连机制
+└── ImageViewerNode (监控节点)
+    ├── FPS实时统计
+    └── 图像信息显示
+```
+
+### 通信机制
+
+- **进程内通信**: 零拷贝，最高效
+- **话题**: `/image_raw` (sensor_msgs/Image)
+- **坐标系**: `camera` frame
 
 ### 通信机制
 
