@@ -254,6 +254,20 @@ public:
     MV_CC_SetImageNodeNum(handle_, 10);
   }
 
+  void fps_monitor_callback()
+  {
+    if (handle_ && is_grabbing_) {
+      MVCC_FLOATVALUE stFloatValue;
+      memset(&stFloatValue, 0, sizeof(MVCC_FLOATVALUE));
+      int result = MV_CC_GetFloatValue(handle_, "ResultingFrameRate", &stFloatValue);
+      if (result == MV_OK) {
+        RCLCPP_INFO(this->get_logger(), "=== CAMERA SDK FPS: %.2f ===", stFloatValue.fCurValue);
+      } else {
+        RCLCPP_WARN(this->get_logger(), "Failed to get ResultingFrameRate: %d", result);
+      }
+    }
+  }
+
 
 
 
@@ -271,10 +285,15 @@ public:
 
 
 
-  MyNode(const rclcpp::NodeOptions & options = rclcpp::NodeOptions()) : rclcpp::Node("my_node", options), handle_(nullptr), is_grabbing_(false), is_reconnecting_(false), payload_size_(0)
+  MyNode(const rclcpp::NodeOptions & options = rclcpp::NodeOptions()) : rclcpp::Node("my_node", options), handle_(nullptr), is_grabbing_(false), is_reconnecting_(false), payload_size_(0), frame_count_(0), last_fps_time_(this->now())
   {
     // 创建图像发布者
     image_publisher_ = this->create_publisher<sensor_msgs::msg::Image>("image_raw", 100);
+
+    // 创建FPS监控定时器，每秒输出一次相机SDK报告的帧率
+    fps_monitor_timer_ = this->create_wall_timer(
+      std::chrono::seconds(1),
+      std::bind(&MyNode::fps_monitor_callback, this));
 
 
 
@@ -563,6 +582,9 @@ private:
   unsigned int payload_size_;
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
+  rclcpp::TimerBase::SharedPtr fps_monitor_timer_;
+  int frame_count_;
+  rclcpp::Time last_fps_time_;
 };
 
 RCLCPP_COMPONENTS_REGISTER_NODE(MyNode)
